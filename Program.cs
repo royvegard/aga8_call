@@ -3,33 +3,89 @@ using System.Runtime.InteropServices;
 
 namespace aga8_call
 {
-    class Program
+    internal class Native
     {
-        [DllImport("aga8_2017", CallingConvention=CallingConvention.StdCall)]
-        private static extern Aga8_Result aga8_2017(double[] composition, double pressure,
-            double temperature);
+        [DllImport("aga8_2017")]
+        internal static extern AGA8DetailHandle aga8_new();
+        [DllImport("aga8_2017")]
+        internal static extern void aga8_free(IntPtr aga8);
+        [DllImport("aga8_2017")]
+        internal static extern void aga8_setup(AGA8DetailHandle aga8);
+        [DllImport("aga8_2017")]
+        internal static extern void aga8_set_composition(AGA8DetailHandle aga8, double[] composition);
+        [DllImport("aga8_2017")]
+        internal static extern void aga8_set_pressure(AGA8DetailHandle aga8, double pressure);
+        [DllImport("aga8_2017")]
+        internal static extern void aga8_set_temperature(AGA8DetailHandle aga8, double temperature);
+        [DllImport("aga8_2017")]
+        internal static extern void aga8_calculate_density(AGA8DetailHandle aga8);
+        [DllImport("aga8_2017")]
+        internal static extern double aga8_get_density(AGA8DetailHandle aga8);
+    }
 
-        [StructLayout(LayoutKind.Sequential)]
-        struct Aga8_Result {
-            public double d; // Molar concentration [mol/l]
-            public double mm;
-            public double z;
-            public double dp_dd;
-            public double d2p_dd2;
-            public double dp_dt;
-            public double u;
-            public double h;
-            public double s;
-            public double cv;
-            public double cp;
-            public double w;
-            public double g;
-            public double jt;
-            public double kappa;
+    internal class AGA8DetailHandle : SafeHandle
+    {
+        public AGA8DetailHandle() : base(IntPtr.Zero, true) {}
+
+        public override bool IsInvalid
+        {
+            get { return false; }
         }
 
-        static void Main(string[] args)
+        protected override bool ReleaseHandle()
         {
+            Native.aga8_free(handle);
+            return true;
+        }
+    }
+
+    public class AGA8Detail : IDisposable
+    {
+        private AGA8DetailHandle aga8;
+
+        public AGA8Detail()
+        {
+            aga8 = Native.aga8_new();
+        }
+
+        public void setup()
+        {
+            Native.aga8_setup(aga8);
+        }
+        
+        public void setComposition(double[] composition)
+        {
+            Native.aga8_set_composition(aga8, composition);
+        }
+
+        public void setPressure(double pressure)
+        {
+            Native.aga8_set_pressure(aga8, pressure);
+        }
+
+        public void setTemperature(double temperature)
+        {
+            Native.aga8_set_temperature(aga8, temperature);
+        }
+
+        public double getDensity()
+        {
+            return Native.aga8_get_density(aga8);
+        }
+
+        public void calculateDensity()
+        {
+            Native.aga8_calculate_density(aga8);
+        }
+
+        public void Dispose()
+        {
+            aga8.Dispose();
+        }
+
+        static public void Main()
+        {
+            var aga = new AGA8Detail();
             double[] comp = {
                 0.778240, // Methane
                 0.020000, // Nitrogen
@@ -53,12 +109,19 @@ namespace aga8_call
                 0.007000, // Helium
                 0.001000 // Argon
             };
-
             double press = 50000.0;
             double tempr = 400.0;
-            Aga8_Result resultat = aga8_2017(comp, press, tempr);
 
-            Console.WriteLine(aga8_2017(comp, press, tempr).mm);
+            aga.setup();
+            aga.setComposition(comp);
+            aga.setPressure(press);
+            aga.setTemperature(tempr);
+            aga.calculateDensity();
+
+            double result = aga.getDensity();
+
+            Console.WriteLine("Density {0}", result);
+
         }
     }
 }
