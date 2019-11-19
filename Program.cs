@@ -21,6 +21,14 @@ namespace aga8_call
         internal static extern void aga8_calculate_density(AGA8DetailHandle aga8);
         [DllImport("aga8_2017")]
         internal static extern double aga8_get_density(AGA8DetailHandle aga8);
+        [DllImport("aga8_2017")]
+        internal static extern void aga8_calculate_properties(AGA8DetailHandle aga8);
+        [DllImport("aga8_2017")]
+        internal static extern AGA8Detail.Aga8_Result aga8_get_properties(AGA8DetailHandle aga8);
+
+        [DllImport("aga8_2017")]
+        internal static extern AGA8Detail.Aga8_Result aga8_2017(double[] composition, double pressure,
+            double temperature);
     }
 
     internal class AGA8DetailHandle : SafeHandle
@@ -55,6 +63,10 @@ namespace aga8_call
         
         public void setComposition(double[] composition)
         {
+            if (composition.Length != 21)
+            {
+                throw new System.ArgumentException("composition must be exactly length 21");
+            }
             Native.aga8_set_composition(aga8, composition);
         }
 
@@ -78,9 +90,38 @@ namespace aga8_call
             Native.aga8_calculate_density(aga8);
         }
 
+        public void calculateProperties()
+        {
+            Native.aga8_calculate_properties(aga8);
+        }
+
+        public Aga8_Result getProperties()
+        {
+            return Native.aga8_get_properties(aga8);
+        }
+
         public void Dispose()
         {
             aga8.Dispose();
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct Aga8_Result {
+            public double d; // Molar concentration [mol/l]
+            public double mm; // Molar mass (g/mol)
+            public double z; // Compressibility factor
+            public double dp_dd;
+            public double d2p_dd2;
+            public double dp_dt;
+            public double u;
+            public double h;
+            public double s;
+            public double cv;
+            public double cp;
+            public double w;
+            public double g;
+            public double jt;
+            public double kappa;
         }
 
         static public void Main()
@@ -112,6 +153,7 @@ namespace aga8_call
             double press = 50000.0;
             double tempr = 400.0;
 
+            // Using Rust object methods
             aga.setup();
             aga.setComposition(comp);
             aga.setPressure(press);
@@ -119,9 +161,25 @@ namespace aga8_call
             aga.calculateDensity();
 
             double result = aga.getDensity();
-
+            Console.WriteLine("Object");
             Console.WriteLine("Density {0}", result);
 
+            aga.calculateProperties();
+            var results_obj = aga.getProperties();
+
+            foreach (var field in results_obj.GetType().GetFields())
+            {
+                Console.WriteLine("{0}: {1}", field.Name, field.GetValue(results_obj));
+            }
+
+            // Using simple Rust function
+            var results = Native.aga8_2017(comp, press, tempr);
+
+            Console.WriteLine("\nSimple function");
+            foreach (var field in results.GetType().GetFields())
+            {
+                Console.WriteLine("{0}: {1}", field.Name, field.GetValue(results));
+            }
         }
     }
 }
