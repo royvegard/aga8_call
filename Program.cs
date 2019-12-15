@@ -154,6 +154,8 @@ namespace aga8_call
             double tempr = 400.0;
 
             // Using Rust object methods
+            Console.WriteLine("Object");
+            var watch = System.Diagnostics.Stopwatch.StartNew();
             aga.setup();
             aga.setComposition(comp);
             aga.setPressure(press);
@@ -161,11 +163,11 @@ namespace aga8_call
             aga.calculateDensity();
 
             double result = aga.getDensity();
-            Console.WriteLine("Object");
-            Console.WriteLine("Density {0}", result);
 
             aga.calculateProperties();
             var results_obj = aga.getProperties();
+            watch.Stop();
+            System.Console.WriteLine("Runtime: {0}", watch.ElapsedMilliseconds);
 
             foreach (var field in results_obj.GetType().GetFields())
             {
@@ -173,9 +175,12 @@ namespace aga8_call
             }
 
             // Using simple Rust function
-            var results = Native.aga8_2017(comp, press, tempr);
-
             Console.WriteLine("\nSimple function");
+            watch.Restart();
+            var results = Native.aga8_2017(comp, press, tempr);
+            watch.Stop();
+            System.Console.WriteLine("Runtime: {0}", watch.ElapsedMilliseconds);
+
             foreach (var field in results.GetType().GetFields())
             {
                 Console.WriteLine("{0}: {1}", field.Name, field.GetValue(results));
